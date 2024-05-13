@@ -70,10 +70,7 @@ namespace ThePornDB.Providers
             {
                 result.Add(new RemoteSearchResult
                 {
-                    ProviderIds = { { Plugin.Instance.Name, prefixID + (string)searchResult["id"] } },
-                    Name = (string)searchResult["title"],
-                    ImageUrl = (string)searchResult["poster"],
-                    PremiereDate = (DateTime)searchResult["date"],
+                    ProviderIds = { { Plugin.Instance.Name, prefixID + (string)searchResult["id"] } }, Name = (string)searchResult["title"], ImageUrl = (string)searchResult["poster"], PremiereDate = (DateTime)searchResult["date"],
                 });
             }
 
@@ -82,11 +79,7 @@ namespace ThePornDB.Providers
 
         public static async Task<MetadataResult<Movie>> SceneUpdate(string sceneID, CancellationToken cancellationToken)
         {
-            var result = new MetadataResult<Movie>()
-            {
-                Item = new Movie(),
-                People = new List<PersonInfo>(),
-            };
+            var result = new MetadataResult<Movie>() { Item = new Movie(), People = new List<PersonInfo>(), };
 
             if (sceneID == null)
             {
@@ -138,7 +131,8 @@ namespace ThePornDB.Providers
             var trailer = (string)sceneData["trailer"];
             if (!string.IsNullOrEmpty(trailer))
             {
-                result.Item.AddTrailerUrl((string)sceneData["trailer"]);
+                // NOTE: Emby does not support non-YouTube trailer link.
+                // result.Item.AddTrailerUrl((string)sceneData["trailer"]);
             }
 
             result.Item.PremiereDate = (DateTime)sceneData["date"];
@@ -172,11 +166,6 @@ namespace ThePornDB.Providers
                         if (actorLink["parent"]["name"] != null)
                         {
                             name = (string)actorLink["parent"]["name"];
-
-                            if (actorLink["parent"]["disambiguation"] != null)
-                            {
-                                name += " (" + (string)actorLink["parent"]["disambiguation"] + ")";
-                            }
                         }
 
                         if (actorLink["parent"]["extras"]["gender"] != null)
@@ -185,18 +174,15 @@ namespace ThePornDB.Providers
                         }
                     }
 
-                    var actor = new PersonInfo
-                    {
-                        Name = name,
-                    };
+                    var actor = new PersonInfo { Name = name, };
 
                     switch (Plugin.Instance.Configuration.ActorsImage)
                     {
                         case ActorsImageStyle.Face:
-                            actor.ImageUrl = (string)actorLink["face"];
+                            actor.ImageUrl = actorLink["parent"]?["face"] != null ? (string)actorLink["parent"]["face"] : (string)actorLink["face"];
                             break;
                         case ActorsImageStyle.Poster:
-                            actor.ImageUrl = (string)actorLink["image"];
+                            actor.ImageUrl = actorLink["parent"]?["image"] != null ? (string)actorLink["parent"]["image"] : (string)actorLink["image"];
                             break;
                     }
 
@@ -253,7 +239,9 @@ namespace ThePornDB.Providers
             var images = new List<(ImageType Type, string Url)>
             {
                 (ImageType.Primary, (string)sceneData["posters"]["large"]),
-                (ImageType.Primary, (string)sceneData["background"]["large"]),
+
+                // NOTE: Remove background image as primary image.
+                // (ImageType.Primary, (string)sceneData["background"]["large"]),
                 (ImageType.Backdrop, (string)sceneData["background"]["large"]),
             };
 
@@ -264,11 +252,7 @@ namespace ThePornDB.Providers
                     continue;
                 }
 
-                var res = new RemoteImageInfo
-                {
-                    Url = image.Url,
-                    Type = image.Type,
-                };
+                var res = new RemoteImageInfo { Url = image.Url, Type = image.Type, };
 
                 var reg = RegExImageSize.Match(image.Url);
                 if (reg.Success)
@@ -301,12 +285,7 @@ namespace ThePornDB.Providers
 
             foreach (var searchResult in data["data"])
             {
-                result.Add(new RemoteSearchResult
-                {
-                    ProviderIds = { { Plugin.Instance.Name, (string)searchResult["id"] } },
-                    Name = searchResult["disambiguation"] != null ? (string)searchResult["name"] + " (" + (string)searchResult["disambiguation"] + ")" : (string)searchResult["name"],
-                    ImageUrl = (string)searchResult["image"],
-                });
+                result.Add(new RemoteSearchResult { ProviderIds = { { Plugin.Instance.Name, (string)searchResult["id"] } }, Name = (string)searchResult["name"], ImageUrl = (string)searchResult["image"], });
             }
 
             return result;
@@ -314,10 +293,7 @@ namespace ThePornDB.Providers
 
         public static async Task<MetadataResult<Person>> PeopleUpdate(string sceneID, CancellationToken cancellationToken)
         {
-            var result = new MetadataResult<Person>()
-            {
-                Item = new Person(),
-            };
+            var result = new MetadataResult<Person>() { Item = new Person(), };
 
             if (sceneID == null)
             {
@@ -334,7 +310,7 @@ namespace ThePornDB.Providers
             sceneData = (JObject)sceneData["data"];
 
             // result.Item.Name = (string)sceneData["name"];
-            result.Item.ExternalId = sceneData["disambiguation"] != null ? (string)sceneData["name"] + " (" + (string)sceneData["disambiguation"] + ")" : (string)sceneData["name"];
+            result.Item.ExternalId = (string)sceneData["name"];
             result.Item.OriginalTitle = string.Join(", ", sceneData["aliases"].Select(o => o.ToString().Trim()));
             result.Item.Overview = ActorsOverview.CustomFormat(sceneData);
 
@@ -428,11 +404,7 @@ namespace ThePornDB.Providers
 
         private static RemoteImageInfo GetRemoteImageFromURL(string url)
         {
-            var res = new RemoteImageInfo
-            {
-                Url = url,
-                Type = ImageType.Primary,
-            };
+            var res = new RemoteImageInfo { Url = url, Type = ImageType.Primary, };
 
             var reg = RegExImageSize.Match(url);
             if (reg.Success)
